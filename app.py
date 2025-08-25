@@ -4,6 +4,7 @@ import plotly.express as px
 import io
 from fpdf import FPDF
 from docx import Document
+import xlsxwriter
 
 st.set_page_config(layout="wide")
 
@@ -71,9 +72,18 @@ def to_pdf(df, figure=None):
 st.title('Analizador de Datos de Excel 📊')
 st.markdown("Sube un archivo de Excel con tus datos para comenzar el análisis.")
 
-uploaded_file = st.file_uploader("Sube tu archivo de Excel", type=['xlsx'])
+# --- Estado de la sesión para reiniciar ---
+if 'file_uploaded' not in st.session_state:
+    st.session_state.file_uploaded = False
+
+if st.button("Hacer otro análisis"):
+    st.session_state.file_uploaded = False
+    st.experimental_rerun()
+
+uploaded_file = st.file_uploader("Sube tu archivo de Excel", type=['xlsx'], key="file_uploader")
 
 if uploaded_file:
+    st.session_state.file_uploaded = True
     try:
         df = pd.read_excel(uploaded_file, sheet_name='Hoja1')
         df = df.dropna(axis=1, how='all')
@@ -83,28 +93,29 @@ if uploaded_file:
         st.subheader("Paso 1: Selecciona las columnas para analizar")
         selected_columns = st.multiselect(
             "Elige una o más columnas para tu análisis:",
-            options=column_names
+            options=column_names,
+            key="column_selector"
         )
-
-        # --- Botón para ejecutar el análisis ---
+        
         st.subheader("Paso 2: Haz clic para ejecutar el análisis")
-        if st.button("Analizar Datos"):
+        if st.button("Analizar Datos", key="analyze_button"):
             if not selected_columns:
                 st.warning("Por favor, selecciona al menos una columna antes de analizar.")
             else:
-                # --- Detección y selección de la columna económica ---
+                # Detección y selección de la columna económica
                 economic_column_options = [col for col in selected_columns if any(c in str(col).lower() for c in ['euro', '€', 'coste', 'importe', 'valor', 'ingreso', 'precio'])]
                 
                 if not economic_column_options:
                     st.error("No se pudo identificar una columna de valores económicos entre las seleccionadas. Elige una que contenga términos como 'Euro', '€', 'Valor', 'Importe', etc.")
                 else:
-                    economic_column = economic_column_options[0] # Asume que la primera opción es la más relevante
+                    economic_column = economic_column_options[0]
                     if len(economic_column_options) > 1:
                         economic_column = st.selectbox(
                             "Se encontraron múltiples columnas económicas. Selecciona la que deseas usar:",
-                            options=economic_column_options
+                            options=economic_column_options,
+                            key="economic_column_selector"
                         )
-
+                    
                     group_by_columns = [col for col in selected_columns if col != economic_column]
                     
                     if not group_by_columns:
@@ -112,7 +123,6 @@ if uploaded_file:
                         st.subheader(f"Suma total de {economic_column}")
                         total_sum = df[economic_column].sum()
                         st.metric(label="Suma Total", value=f"€{total_sum:,.2f}")
-                        
                     else:
                         st.header("Resultados del Análisis")
                         try:
@@ -134,7 +144,6 @@ if uploaded_file:
                             El total acumulado es de **€{total_sum:,.2f}**.
                             """)
                             
-                            # --- Botones de Descarga ---
                             st.subheader("Opciones de Exportación")
                             col1, col2, col3 = st.columns(3)
                             with col1:
