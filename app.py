@@ -87,23 +87,22 @@ if uploaded_file:
         
         st.subheader("Selecciona las columnas para analizar")
         selected_columns = st.multiselect(
-            "Elige más de tres columnas:",
+            "Elige una o más columnas para tu análisis:",
             options=column_names
         )
 
         if selected_columns:
-            # Detectar la columna de valores económicos (asumiendo que es la última o tiene '€')
-            economic_column = selected_columns[-1]
-            if not any(c in economic_column.lower() for c in ['euro', '€', 'coste', 'importe', 'valor']):
-                economic_column_options = [col for col in selected_columns if any(c in col.lower() for c in ['euro', '€', 'coste', 'importe', 'valor'])]
-                if economic_column_options:
-                    economic_column = st.selectbox(
-                        "No se detectó una columna económica. Por favor, selecciona la columna de valores:",
-                        options=economic_column_options
-                    )
-                else:
-                    st.warning("No se pudo identificar una columna de valores económicos. Por favor, asegúrate de que el nombre de la columna contenga palabras como 'Euro', '€', 'Valor', 'Importe', etc.")
-                    economic_column = None
+            # Detección más robusta de la columna de valores económicos
+            economic_column_options = [col for col in selected_columns if any(c in str(col).lower() for c in ['euro', '€', 'coste', 'importe', 'valor', 'ingreso', 'precio'])]
+            
+            economic_column = None
+            if economic_column_options:
+                economic_column = st.selectbox(
+                    "Por favor, selecciona la columna que contiene los valores económicos:",
+                    options=economic_column_options
+                )
+            else:
+                st.warning("No se pudo identificar una columna de valores económicos. Asegúrate de seleccionar una con términos como 'Euro', '€', 'Valor', 'Importe', etc.")
             
             if economic_column:
                 # Excluir la columna económica del grupo de análisis
